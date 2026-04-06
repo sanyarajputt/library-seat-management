@@ -141,7 +141,58 @@ def get_penalties():
         })
 
     return jsonify(penalties)
-
+@app.route('/analytics', methods=['GET'])
+def analytics():
+    cursor = mysql.connection.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM seats WHERE is_occupied = TRUE")
+    occupied = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM seats WHERE is_occupied = FALSE")
+    free = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM seats")
+    total = cursor.fetchone()[0]
+    
+    cursor.execute("""
+        SELECT HOUR(allocated_at), COUNT(*) 
+        FROM seats 
+        WHERE allocated_at IS NOT NULL 
+        GROUP BY HOUR(allocated_at) 
+        ORDER BY HOUR(allocated_at)
+    """)
+    hourly = cursor.fetchall()
+    
+    hourly_data = {str(row[0]): row[1] for row in hourly}
+    
+    utilization = round((occupied / total) * 100, 1) if total > 0 else 0
+    
+    return jsonify({
+        'total': total,
+        'occupied': occupied,
+        'free': free,
+        'utilization_percent': utilization,
+        'hourly_data': hourly_data
+    })
+@app.route('/qr/<seat_number>')
+def generate_qr(seat_number):
+    import qrcode
+    import io
+    from flask import send_file
+    
+    url = f'http://127.0.0.1:5000/scan/{seat_number}'
+    
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(url)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color='black', back_color='white')
+    
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    
+    return send_file(buf, mimetype='image/png')
 def auto_expire_seats():
     with app.app_context():
         cursor = mysql.connection.cursor()
