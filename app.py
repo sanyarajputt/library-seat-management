@@ -2,8 +2,9 @@ from flask import Flask, request, jsonify
 from flask_mysqldb import MySQL
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-import os
 from apscheduler.schedulers.background import BackgroundScheduler
+import os
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -30,6 +31,12 @@ def allocate():
     student_roll = data.get('student_roll')
 
     cursor = mysql.connection.cursor()
+
+    cursor.execute("SELECT is_blocked, blocked_until FROM penalties WHERE student_roll = %s", (student_roll,))
+    penalty = cursor.fetchone()
+    if penalty and penalty[0] and penalty[1] > datetime.now():
+        return jsonify({'success': False, 'message': 'You are blocked from booking seats for 24 hours due to ghost-seat reports!'})
+
     cursor.execute("SELECT * FROM seats WHERE seat_number = %s", (seat_number,))
     seat = cursor.fetchone()
 
@@ -80,8 +87,61 @@ def get_seats():
 
     return jsonify(seats)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/report', methods=['POST'])
+def report():
+    data = request.get_json()
+    seat_number = data.get('seat_number')
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT student_roll FROM seats WHERE seat_number = %s", (seat_number,))
+    seat = cursor.fetchone()
+
+    if not seat or not seat[0]:
+        return jsonify({'success': False, 'message': 'Seat is not occupied!'})
+
+    student_roll = seat[0]
+
+    cursor.execute("SELECT * FROM penalties WHERE student_roll = %s", (student_roll,))
+    penalty = cursor.fetchone()
+
+    if not penalty:
+        cursor.execute("""
+            INSERT INTO penalties (student_roll, report_count, is_blocked, last_reported) 
+            VALUES (%s, 1, FALSE, NOW())
+        """, (student_roll,))
+    else:
+        new_count = penalty[2] + 1
+        is_blocked = new_count >= 2
+        blocked_until = datetime.now() + timedelta(hours=24) if is_blocked else None
+        cursor.execute("""
+            UPDATE penalties 
+            SET report_count=%s, is_blocked=%s, blocked_until=%s, last_reported=NOW()
+            WHERE student_roll=%s
+        """, (new_count, is_blocked, blocked_until, student_roll))
+
+    mysql.connection.commit()
+
+    if penalty and penalty[2] + 1 >= 2:
+        return jsonify({'success': True, 'message': f'{student_roll} has been blocked for 24 hours!'})
+    return jsonify({'success': True, 'message': f'Warning issued to {student_roll}!'})
+
+@app.route('/penalties', methods=['GET'])
+def get_penalties():
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT student_roll, report_count, is_blocked, blocked_until FROM penalties")
+    rows = cursor.fetchall()
+
+    penalties = []
+    for row in rows:
+        penalties.append({
+            'student_roll': row[0],
+            'report_count': row[1],
+            'is_blocked': bool(row[2]),
+            'blocked_until': str(row[3]) if row[3] else None
+        })
+
+    return jsonify(penalties)
+
 def auto_expire_seats():
     with app.app_context():
         cursor = mysql.connection.cursor()
