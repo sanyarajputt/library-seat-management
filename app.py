@@ -3,7 +3,7 @@ from flask_mysqldb import MySQL
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import os
-
+from apscheduler.schedulers.background import BackgroundScheduler
 load_dotenv()
 
 app = Flask(__name__)
@@ -79,6 +79,23 @@ def get_seats():
         })
 
     return jsonify(seats)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+def auto_expire_seats():
+    with app.app_context():
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            UPDATE seats 
+            SET is_occupied=FALSE, student_roll=NULL, allocated_at=NULL, expires_at=NULL 
+            WHERE is_occupied=TRUE AND expires_at < NOW()
+        """)
+        mysql.connection.commit()
+        cursor.close()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=auto_expire_seats, trigger='interval', minutes=1)
+scheduler.start()
 
 if __name__ == '__main__':
     app.run(debug=True)
