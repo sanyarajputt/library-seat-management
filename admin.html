@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LibDesk — Admin Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f7f8fc;
+      min-height: 100vh;
+    }
+
+    /* Top navbar */
+    .navbar {
+      background: #1a1a2e;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-logo { font-size: 18px; font-weight: 700; color: #fff; }
+    .nav-logo span { color: #4f8ef7; }
+
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #6ee7b7;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #6ee7b7;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .clock {
+      font-size: 13px;
+      color: #aaa;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .nav-link {
+      font-size: 13px;
+      color: #aaa;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+
+    .nav-link:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .nav-link.active { color: #4f8ef7; }
+
+    /* Layout */
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 56px); }
+
+    .sidebar {
+      background: #fff;
+      border-right: 1px solid #e8e8e8;
+      padding: 20px 0;
+    }
+
+    .sidebar-section {
+      font-size: 10px;
+      font-weight: 600;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 14px 20px 6px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      font-size: 13px;
+      color: #555;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .sidebar-item:hover { color: #1a1a2e; background: #f7f8fc; }
+    .sidebar-item.active { color: #4f8ef7; border-left-color: #4f8ef7; background: #f0f6ff; }
+
+    .main { padding: 24px 28px; }
+
+    /* KPI cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .kpi {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-val {
+      font-size: 30px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-sub { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+    .kpi-bar {
+      height: 3px;
+      background: #f0f0f0;
+      border-radius: 99px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .kpi-bar-fill { height: 100%; border-radius: 99px; }
+
+    /* Two column layout */
+    .col2 { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+
+    /* Panel */
+    .panel {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid #e8e8e8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+    .panel-body { padding: 16px 18px; }
+
+    /* Seat grid */
+    .seat-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .seat {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      border: 1.5px solid transparent;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .seat:hover { transform: scale(1.05); }
+
+    .seat.free {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
+    }
+
+    .seat.occupied {
+      background: #fffbeb;
+      border-color: #fcd34d;
+      color: #92400e;
+    }
+
+    .seat.expiring {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #991b1b;
+      animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .seat-id { font-size: 9px; opacity: 0.7; }
+    .seat-timer { font-size: 8px; margin-top: 1px; font-variant-numeric: tabular-nums; }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: #888;
+      padding: 10px 18px;
+      border-top: 1px solid #e8e8e8;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    /* Activity feed */
+    .act-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 12px;
+    }
+
+    .act-item:last-child { border-bottom: none; }
+    .act-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+    .act-text { flex: 1; line-height: 1.5; color: #444; }
+    .act-time { font-size: 11px; color: #bbb; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      width: 340px;
+      border: 1px solid #e8e8e8;
+    }
+
+    .modal-title { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: #888; margin-bottom: 18px; }
+
+    .modal-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .modal-info-cell {
+      background: #f7f8fc;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .modal-info-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+    .modal-info-val { font-size: 16px; font-weight: 600; color: #1a1a2e; font-variant-numeric: tabular-nums; }
+
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    .btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      background: transparent;
+      color: #444;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn:hover { background: #f7f8fc; }
+
+    .btn-danger {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #dc2626;
+    }
+
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* Penalty table */
+    .pen-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+    .pen-table th { text-align: left; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .pen-table td { padding: 8px 0; border-bottom: 1px solid #f0f0f0; color: #444; }
+    .pen-table tr:last-child td { border-bottom: none; }
+
+    .tag {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .tag-red { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .tag-green { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .tag-amber { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .col2 { grid-template-columns: 1fr; }
+      .seat-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-logo">Lib<span>Desk</span> <span style="font-size:12px;color:#555;font-weight:400">Admin</span></div>
+    <div class="nav-right">
+      <div class="live-badge"><div class="live-dot"></div>Live</div>
+      <div class="clock" id="clock">--:--:--</div>
+      <a href="/admin" class="nav-link active">Dashboard</a>
+      <a href="/analytics" class="nav-link">Analytics</a>
+      <a href="/qrcodes" class="nav-link">QR Codes</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">Overview</div>
+      <a href="/admin" class="sidebar-item active">Floor Plan</a>
+      <a href="/analytics" class="sidebar-item">Analytics</a>
+      <div class="sidebar-section">Management</div>
+      <a href="/qrcodes" class="sidebar-item">Print QR Codes</a>
+      <a href="/penalties" class="sidebar-item">Penalty Records</a>
+      <a href="/log" class="sidebar-item">Activity Log</a>
+    </div>
+
+    <!-- Main content -->
+    <div class="main">
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Total Seats</div>
+          <div class="kpi-val" style="color:#1a1a2e">{{ total_seats }}</div>
+          <div class="kpi-sub">Hall A Reading Room</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Available</div>
+          <div class="kpi-val" style="color:#059669">{{ available }}</div>
+          <div class="kpi-sub">Ready to allocate</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill" style="width:{{ avail_pct }}%;background:#059669"></div></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Occupied</div>
+          <div class="kpi-val" style="color:#d97706">{{ occupied }}</div>
+          <div class="kpi-sub">{{ occ_pct }}% utilization</div>
+          <div class="kpi-bar"><div class="kpi-bar-fill" style="width:{{ occ_pct }}%;background:#d97706"></div></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Expiring Soon</div>
+          <div class="kpi-val" style="color:{% if expiring > 0 %}#dc2626{% else %}#aaa{% endif %}">{{ expiring }}</div>
+          <div class="kpi-sub">Under 15 minutes left</div>
+        </div>
+      </div>
+
+      <div class="col2">
+        <!-- Floor Plan -->
+        <div>
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Floor Plan — Hall A</span>
+              <span style="font-size:12px;color:#aaa">{{ available }} of {{ total_seats }} free</span>
+            </div>
+            <div class="panel-body">
+              <div class="seat-grid" id="seat-grid">
+                {% for seat in seats %}
+                <div
+                  class="seat {{ seat.status }}"
+                  onclick="openModal('{{ seat.seat_number }}', '{{ seat.status }}', '{{ seat.student_roll }}', '{{ seat.expires_at }}')"
+                  id="seat-{{ seat.seat_number }}"
+                >
+                  <div class="seat-id">{{ seat.seat_number }}</div>
+                  {% if seat.status != 'free' %}
+                  <div class="seat-timer" id="timer-{{ seat.seat_number }}">--:--</div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="legend">
+              <span><span class="legend-dot" style="background:#059669"></span>Available</span>
+              <span><span class="legend-dot" style="background:#d97706"></span>Occupied</span>
+              <span><span class="legend-dot" style="background:#dc2626"></span>Expiring</span>
+            </div>
+          </div>
+
+          <!-- Penalty records -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Penalty Records</span>
+              <span class="tag tag-red">{{ blocked_count }} blocked</span>
+            </div>
+            <div class="panel-body">
+              <table class="pen-table">
+                <thead>
+                  <tr>
+                    <th>Roll No.</th>
+                    <th>Reports</th>
+                    <th>Status</th>
+                    <th>Blocked Until</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in penalties %}
+                  <tr>
+                    <td>{{ p.student_roll }}</td>
+                    <td>{{ p.report_count }}</td>
+                    <td>
+                      {% if p.is_blocked %}
+                      <span class="tag tag-red">Blocked</span>
+                      {% else %}
+                      <span class="tag tag-green">Clear</span>
+                      {% endif %}
+                    </td>
+                    <td style="color:#aaa">{{ p.blocked_until or '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                  {% if not penalties %}
+                  <tr><td colspan="4" style="color:#aaa;text-align:center;padding:16px">No penalty records</td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="panel" style="height:fit-content">
+          <div class="panel-header"><span class="panel-title">Recent Activity</span></div>
+          <div class="panel-body">
+            {% for log in activity %}
+            <div class="act-item">
+              <div class="act-dot" style="background:{% if log.event == 'allocated' %}#059669{% elif log.event == 'expired' or log.event == 'freed' %}#dc2626{% else %}#d97706{% endif %}"></div>
+              <div class="act-text">
+                <strong>{{ log.seat_number }}</strong> {{ log.event }}
+                {% if log.student_roll %} — {{ log.student_roll }}{% endif %}
+              </div>
+              <div class="act-time">{{ log.time }}</div>
+            </div>
+            {% endfor %}
+            {% if not activity %}
+            <div style="text-align:center;color:#aaa;padding:20px;font-size:13px">No activity yet</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seat Detail Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-title" id="m-title">Seat Details</div>
+      <div class="modal-sub" id="m-sub"></div>
+      <div class="modal-info" id="m-info"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Close</button>
+        <form id="free-form" method="POST" action="/free" style="display:inline">
+          <input type="hidden" name="seat_number" id="free-seat-input" />
+          <button class="btn btn-danger" type="submit" id="free-btn" style="display:none">Free This Seat</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Clock
+    function updateClock() {
+      const d = new Date();
+      document.getElementById('clock').textContent =
+        String(d.getHours()).padStart(2,'0') + ':' +
+        String(d.getMinutes()).padStart(2,'0') + ':' +
+        String(d.getSeconds()).padStart(2,'0');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Seat timers from server data
+    const seatData = {{ seats_json | safe }};
+
+    function fmtTime(ms) {
+      if (ms <= 0) return 'Expired';
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      const s = Math.floor((ms % 60000) / 1000);
+      if (h > 0) return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+      return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+
+    function updateTimers() {
+      seatData.forEach(seat => {
+        if (seat.expires_at && seat.status !== 'free') {
+          const rem = new Date(seat.expires_at).getTime() - Date.now();
+          const el = document.getElementById('timer-' + seat.seat_number);
+          if (el) el.textContent = fmtTime(rem);
+        }
+      });
+    }
+
+    setInterval(updateTimers, 1000);
+    updateTimers();
+
+    // Auto-refresh page every 30 seconds to sync with server
+    setTimeout(() => location.reload(), 30000);
+
+    // Modal
+    let currentSeat = null;
+
+    function openModal(seatNum, status, roll, expiresAt) {
+      currentSeat = seatNum;
+      document.getElementById('m-title').textContent = 'Seat ' + seatNum;
+      document.getElementById('free-seat-input').value = seatNum;
+
+      const freeBtn = document.getElementById('free-btn');
+
+      if (status === 'free') {
+        document.getElementById('m-sub').textContent = 'This seat is available';
+        document.getElementById('m-info').innerHTML = `
+          <div class="modal-info-cell"><div class="modal-info-label">Status</div><div class="modal-info-val" style="color:#059669">Free</div></div>
+          <div class="modal-info-cell"><div class="modal-info-label">Student</div><div class="modal-info-val" style="color:#aaa">—</div></div>
+        `;
+        freeBtn.style.display = 'none';
+      } else {
+        const rem = expiresAt ? Math.max(0, new Date(expiresAt).getTime() - Date.now()) : 0;
+        document.getElementById('m-sub').textContent = roll || 'Unknown student';
+        document.getElementById('m-info').innerHTML = `
+          <div class="modal-info-cell"><div class="modal-info-label">Time Left</div><div class="modal-info-val" style="color:${rem < 900000 ? '#dc2626' : '#1a1a2e'}">${fmtTime(rem)}</div></div>
+          <div class="modal-info-cell"><div class="modal-info-label">Status</div><div class="modal-info-val" style="color:#d97706;font-size:13px;text-transform:capitalize">${status}</div></div>
+        `;
+        freeBtn.style.display = 'inline-flex';
+      }
+
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+      currentSeat = null;
+    }
+  </script>
+</body>
+</html>

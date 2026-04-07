@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LibDesk — Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f7f8fc;
+      min-height: 100vh;
+    }
+
+    .navbar {
+      background: #1a1a2e;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-logo { font-size: 18px; font-weight: 700; color: #fff; }
+    .nav-logo span { color: #4f8ef7; }
+
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+
+    .nav-link {
+      font-size: 13px;
+      color: #aaa;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+
+    .nav-link:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .nav-link.active { color: #4f8ef7; }
+
+    .content { padding: 28px; max-width: 1100px; }
+
+    .page-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .kpi {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .kpi-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+    .kpi-val { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .kpi-sub { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid #e8e8e8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+    .panel-body { padding: 18px; }
+
+    /* Heatmap */
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+
+    .hmap-cell {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    .hmap-cell:hover { transform: scale(1.1); }
+    .hmap-cell span { font-size: 8px; opacity: 0.8; margin-top: 1px; }
+
+    .hmap-legend {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .hmap-scale {
+      display: flex;
+      gap: 3px;
+    }
+
+    .hmap-scale-cell {
+      width: 14px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    /* Day chart bars */
+    .day-bars { display: flex; flex-direction: column; gap: 10px; }
+
+    .day-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .day-label { font-size: 12px; color: #888; width: 36px; flex-shrink: 0; }
+
+    .day-bar-bg {
+      flex: 1;
+      height: 10px;
+      background: #f0f0f0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .day-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: #4f8ef7;
+      transition: width 1s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .day-val { font-size: 12px; color: #555; width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Log table */
+    .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .log-table th { text-align: left; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0; border-bottom: 1px solid #e8e8e8; }
+    .log-table td { padding: 10px 0; border-bottom: 1px solid #f5f5f5; color: #444; }
+    .log-table tr:last-child td { border-bottom: none; }
+
+    .tag {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .tag-green { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .tag-red { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .tag-amber { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+
+    .export-btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      background: #fff;
+      color: #555;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+
+    .export-btn:hover { background: #f7f8fc; border-color: #ccc; }
+
+    @media (max-width: 768px) {
+      .chart-grid { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2,1fr); }
+      .content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-logo">Lib<span>Desk</span> <span style="font-size:12px;color:#555;font-weight:400">Analytics</span></div>
+    <div class="nav-right">
+      <a href="/admin" class="nav-link">Dashboard</a>
+      <a href="/analytics" class="nav-link active">Analytics</a>
+      <a href="/qrcodes" class="nav-link">QR Codes</a>
+    </div>
+  </nav>
+
+  <div class="content">
+    <div class="page-title">Analytics</div>
+    <div class="page-sub">Seat utilization insights — updated live</div>
+
+    <!-- KPI summary -->
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Total sessions today</div>
+        <div class="kpi-val" style="color:#1a1a2e">{{ total_sessions }}</div>
+        <div class="kpi-sub">Since library opened</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Peak occupancy</div>
+        <div class="kpi-val" style="color:#d97706">{{ peak_pct }}%</div>
+        <div class="kpi-sub">At {{ peak_hour }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Auto-expired</div>
+        <div class="kpi-val" style="color:#dc2626">{{ expired_count }}</div>
+        <div class="kpi-sub">Seats not released manually</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg session length</div>
+        <div class="kpi-val" style="color:#059669">{{ avg_session }}m</div>
+        <div class="kpi-sub">Across all bookings today</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="chart-grid">
+      <!-- Hourly occupancy chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Hourly occupancy today</span>
+        </div>
+        <div class="panel-body">
+          <canvas id="hourly-chart" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Day of week chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Avg occupancy by day</span>
+        </div>
+        <div class="panel-body">
+          <div class="day-bars">
+            {% for day in day_stats %}
+            <div class="day-row">
+              <div class="day-label">{{ day.name }}</div>
+              <div class="day-bar-bg">
+                <div class="day-bar-fill" style="width:{{ day.pct }}%"></div>
+              </div>
+              <div class="day-val">{{ day.pct }}%</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Heatmap + log row -->
+    <div class="chart-grid">
+      <!-- Seat heatmap -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Seat usage heatmap</span>
+          <span style="font-size:12px;color:#aaa">Most booked seats</span>
+        </div>
+        <div class="panel-body">
+          <div class="heatmap-grid" id="heatmap"></div>
+          <div class="hmap-legend">
+            <span>Less used</span>
+            <div class="hmap-scale" id="hmap-scale"></div>
+            <span>Most used</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity log with export -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Activity log</span>
+          <a href="/export-log" class="export-btn">Export CSV</a>
+        </div>
+        <div class="panel-body" style="max-height:260px;overflow-y:auto">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Seat</th>
+                <th>Roll No.</th>
+                <th>Event</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              <tr>
+                <td style="color:#aaa;font-size:12px">{{ log.time }}</td>
+                <td>{{ log.seat_number }}</td>
+                <td>{{ log.student_roll or '—' }}</td>
+                <td>
+                  {% if log.event == 'allocated' %}
+                  <span class="tag tag-green">Allocated</span>
+                  {% elif log.event == 'expired' %}
+                  <span class="tag tag-red">Expired</span>
+                  {% elif log.event == 'freed' %}
+                  <span class="tag tag-amber">Freed</span>
+                  {% else %}
+                  <span class="tag">{{ log.event }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+              {% if not logs %}
+              <tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">No activity recorded yet</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Hourly occupancy line chart
+    const hourlyLabels = {{ hourly_labels | tojson }};
+    const hourlyData = {{ hourly_data | tojson }};
+
+    new Chart(document.getElementById('hourly-chart'), {
+      type: 'line',
+      data: {
+        labels: hourlyLabels,
+        datasets: [{
+          label: 'Occupancy %',
+          data: hourlyData,
+          borderColor: '#4f8ef7',
+          backgroundColor: 'rgba(79,142,247,0.08)',
+          borderWidth: 2,
+          pointBackgroundColor: '#4f8ef7',
+          pointRadius: 4,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.parsed.y + '%'
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            ticks: {
+              callback: val => val + '%',
+              font: { size: 11 },
+              color: '#aaa'
+            },
+            grid: { color: '#f0f0f0' }
+          },
+          x: {
+            ticks: { font: { size: 11 }, color: '#aaa' },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+
+    // Seat heatmap
+    const heatmapData = {{ heatmap_data | tojson }};
+
+    function getHeatColor(pct) {
+      const r = Math.round(255 * (pct / 100));
+      const g = Math.round(180 * (1 - pct / 100) + 60);
+      return `rgb(${r},${g},80)`;
+    }
+
+    const hmEl = document.getElementById('heatmap');
+    heatmapData.forEach(seat => {
+      const cell = document.createElement('div');
+      cell.className = 'hmap-cell';
+      cell.style.background = getHeatColor(seat.pct);
+      cell.style.color = seat.pct > 50 ? '#fff' : '#333';
+      cell.title = seat.seat + ': ' + seat.pct + '% usage';
+      cell.innerHTML = seat.seat + '<span>' + seat.pct + '%</span>';
+      hmEl.appendChild(cell);
+    });
+
+    // Heatmap scale
+    const scaleEl = document.getElementById('hmap-scale');
+    for (let i = 0; i <= 10; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'hmap-scale-cell';
+      cell.style.background = getHeatColor(i * 10);
+      scaleEl.appendChild(cell);
+    }
+  </script>
+</body>
+</html>
